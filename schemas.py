@@ -5,7 +5,6 @@ from datetime import datetime
 
 
 class Post(BaseModel):
-    id: UUID = Field(default_factory=uuid4, primary_key=True, nullable=False)
     title: str
     body: str
     created_at: datetime

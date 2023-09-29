@@ -1,10 +1,13 @@
 from fastapi import Depends, FastAPI, status, Response, HTTPException
-import schemas, models, hashing
+import schemas, models
 from database import Base, engine, SessionLocal
 from sqlalchemy.orm import Session
 import uuid
 from typing import List
 from sqlalchemy.sql import func
+from pydantic import BaseModel, Field
+from typing import Optional
+from uuid import UUID, uuid4
 
 
 models.Base.metadata.create_all(bind=engine)
@@ -28,7 +31,8 @@ def home(db: Session = Depends(get_db)):
 
 @app.post('/create-blog-posts', status_code=201, tags=["Blogs"])
 def create_blog(request: schemas.Post, db: Session = Depends(get_db)):
-    new_blog = models.Blog(title=request.title, body=request.body, created_at=request.created_at, published=request.published, user_id="2afeb3c8-8d59-4883-8c82-8a04cf4c474d")
+    id_blog = uuid4()
+    new_blog = models.Blog(id=str(id_blog), title=request.title, body=request.body, created_at=request.created_at, published=request.published)
     db.add(new_blog)
     db.commit()
     db.refresh(new_blog)
@@ -72,36 +76,3 @@ def delete_blog(id, db: Session = Depends(get_db)):
     db.commit()
     return f'Blog with id {id} is deleted successfully'
 
-# Users
-
-@app.post('/create-user', status_code=status.HTTP_201_CREATED, tags=["Users"])
-def create_user(request: schemas.User, db: Session = Depends(get_db)):
-    new_user = models.User(name=request.name, email=request.email, password=hashing.Hash.bcrypt(request.password))
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    return new_user
-
-@app.get('/users', status_code=status.HTTP_200_OK, response_model=List[schemas.ShowUser], tags=["Users"])
-def get_all_users(db: Session = Depends(get_db)):
-    users = db.query(models.User).all()
-    return users
-
-@app.get('/user/{id}', status_code=status.HTTP_200_OK, response_model=schemas.ShowUser, tags=["Users"])
-def get_user(id, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.id == id).first()
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User with `{id}` not found")
-    
-    return user
-
-@app.delete('/user/{id}', status_code=204, tags=["Users"])
-def delete_user(id, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.id == id)
-    
-    if not user.first():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User with `{id}` not found")
-    
-    user.delete(synchronize_session=False)
-    db.commit()
-    return 'deleted'
